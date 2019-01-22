@@ -79,6 +79,7 @@ namespace Icembler
                 token = parser.GetToken();
             }
 
+            string zzz  = BitConverter.ToString(byteList.ToArray()).Replace("-", " ");
             return byteList.ToArray();
         }
 
@@ -189,6 +190,7 @@ namespace Icembler
                         SkipWhiteSpace(parser);
                         if (parser.Peek() != null && parser.Peek().TokenPeek != null &&
                             (parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Comma ||
+                             parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Decrement1 ||
                              parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Integer ||
                              parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.BinaryNumber ||
                              parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.HexNumber ||
@@ -421,6 +423,7 @@ namespace Icembler
         private void StaIndexed(Assembly6809TokenParser parser, List<byte> byteList, bool labelScan)
         {
             ushort indexValue = 0;
+            bool negate = false;
 
             if (parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Comma)
             {
@@ -430,6 +433,11 @@ namespace Icembler
             {
                 string expression = "";
                 var token = parser.GetToken();
+                if (token.TokenName == Assembly6809TokenParser.Tokens.Decrement1)
+                {
+                    negate = true;
+                    token = parser.GetToken();
+                }
                 while (token != null && token.TokenName != Assembly6809TokenParser.Tokens.Comma)
                 {
                     expression += token.TokenValue;
@@ -437,32 +445,41 @@ namespace Icembler
                 }
 
                 ushort parsedExpression = ParseExpression(expression, labelScan);
-                if (parsedExpression > 255)
-                {
-                    throw new Exceptions.OverflowException($"Overflow error at line {_lineNumber}");
-                }
-
+                
                 indexValue = parsedExpression;
             }
 
             byte operand = 128;
+            bool hasByteOperand = false;
+            bool hasWordOperand = false;
+            ushort wordOperand = 0;
+            byte byteOperand = 0;
 
             if (indexValue == 0)
             {
-                operand = (byte) (operand | 4);
+                operand = 132;
             }
-            else if (indexValue > 0 && indexValue <= 31)
+            else if (indexValue > 0 && indexValue <= 16)
             {
-                operand = (byte) (operand | indexValue);
-                operand = (byte) (operand & 0x7f);
+                operand = (byte) indexValue;
+                if (negate)
+                {
+                    //operand = (byte) (operand | 16);
+                    operand = ConvertToTwosCompliment(operand);
+                    operand = (byte) (operand & 0x1f);
+                }
             }
-            else if (indexValue >= 32 && indexValue <= 255)
+            else if (indexValue >= 17 && indexValue <= 128)
             {
                 operand = (byte) (operand | 8);
+                byteOperand = (byte) (negate ? ConvertToTwosCompliment((byte)indexValue) : indexValue);
+                hasByteOperand = true;
             }
-            else if (indexValue >= 256)
+            else if (indexValue >= 129)
             {
                 operand = (byte) (operand | 9);
+                wordOperand = negate ? ConvertToTwosCompliment(indexValue) : indexValue;
+                hasWordOperand = true;
             }
 
             SkipWhiteSpace(parser);
@@ -520,6 +537,16 @@ namespace Icembler
             byteList.Add(operand);
 
             _numberOfBytes += 2;
+            if (hasByteOperand)
+            {
+                byteList.Add(byteOperand);
+                _numberOfBytes += 1;
+            } else if (hasWordOperand)
+            {
+                byteList.Add((byte)((wordOperand >> 8) & 0xFFu));
+                byteList.Add((byte)(wordOperand & 0xFFu));
+                _numberOfBytes += 2;
+            }
         }
         #endregion
     }

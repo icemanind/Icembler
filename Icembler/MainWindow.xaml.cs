@@ -35,7 +35,7 @@ namespace Icembler
             //vd.WriteVirtualDiskToFile(@"C:\q\test.dsk");
 
             string program = "DOG\tEQU\t$15+2*4\nCAT\tEQU\tDOG-10\nMOUSE\tEQU\t-32\nSTART\tLDA\t#10\n\tEND\tSTART";
-            program = "\tORG\t$3F00\nSTART\tLDX\t#1024\n\tLDA\t#65\n\tSTA\t$10,X\n\tRTS\n\tEND\tSTART";
+            program = "\tORG\t$3F00\nSTART\tLDX\t#1054\n\tLDA\t#65\n\tSTA\t-$585,X\n\tRTS\n\tEND\tSTART";
             SourceCodeTextBox.AppendText(program);
            
         }
