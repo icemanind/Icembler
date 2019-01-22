@@ -1,0 +1,1 @@
+{"TokenicerVersion":"2.0.0.14","InputGrammar":"\"\\(\" Lparen\r\n\"\\)\" Rparen\r\n\"\\*\" Asterisk\r\n\"\\+\" Plus\r\n\"\\-\" Minus\r\n\"\\$[0-9A-Fa-f]+\" HexNumber\r\n\"\\%[01]+\" BinaryNumber\r\n\"[a-zA-Z_][a-zA-Z0-9_]*\" Identifier\r\n\"[0-9]+\" Integer\r\n\"[\\r\\n]+\" Newline\r\n\"[ \\t]+\" Whitespace\r\n","InputTest":"15 + 2*8+$E0-%000100","IgnoreSpaces":false}
