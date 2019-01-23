@@ -45,12 +45,14 @@ namespace Icembler
             var assembler = new Assembler();
             byte[] data = assembler.Assemble(SourceCodeTextBox.Text);
 
-            var vd = new VirtualDisk();
+            string zzz = BitConverter.ToString(data).Replace("-", " ");
 
-            data = vd.ConvertToDecbMachineLanguageFile(data, assembler.StartingAddress, assembler.ExecutionAddress);
+            //var vd = new VirtualDisk();
 
-            vd.AddFile(data, "TEST.BIN", FileTypes.MachineLanguage, FileModes.Binary);
-            vd.WriteVirtualDiskToFile(@"C:\q\test.dsk");
+            //data = vd.ConvertToDecbMachineLanguageFile(data, assembler.StartingAddress, assembler.ExecutionAddress);
+
+            //vd.AddFile(data, "TEST.BIN", FileTypes.MachineLanguage, FileModes.Binary);
+            //vd.WriteVirtualDiskToFile(@"C:\q\test.dsk");
         }
     }
 }

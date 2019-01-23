@@ -79,7 +79,6 @@ namespace Icembler
                 token = parser.GetToken();
             }
 
-            string zzz = BitConverter.ToString(byteList.ToArray()).Replace("-", " ");
             return byteList.ToArray();
         }
 
@@ -256,6 +255,29 @@ namespace Icembler
                 parser.GetToken();
                 pt = parser.Peek();
             }
+        }
+
+        private ushort ParseExpression(Assembly6809TokenParser parser, Assembly6809TokenParser.Tokens delimiter, bool labelScan)
+        {
+            SkipWhiteSpace(parser);
+
+            if (parser.Peek() == null || parser.Peek().TokenPeek == null)
+            {
+                throw new Exceptions.UnexpectedEndOfLineException($"Unexpected End of Line on line {_lineNumber}");
+            }
+
+            var token = parser.Peek()?.TokenPeek;
+            string exp = "";
+
+            while (token != null && token.TokenName != delimiter)
+            {
+                token = parser.GetToken();
+                exp += token.TokenValue;
+                if (parser.Peek() == null || parser.Peek().TokenPeek == null) break;
+                token = parser.Peek()?.TokenPeek;
+            }
+
+            return ParseExpression(exp, labelScan);
         }
 
         private ushort ParseExpression(string exp, bool labelScan)
@@ -501,104 +523,122 @@ namespace Icembler
             ushort indexValue = 0;
             bool negate = false;
 
-            if (parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Comma)
+            if (parser.Peek() != null && parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Comma)
             {
                 parser.GetToken();
             }
             else
             {
-                string expression = "";
                 var token = parser.GetToken();
                 if (token.TokenName == Assembly6809TokenParser.Tokens.Decrement1)
                 {
                     negate = true;
                     token = parser.GetToken();
                 }
-                while (token != null && token.TokenName != Assembly6809TokenParser.Tokens.Comma)
-                {
-                    expression += token.TokenValue;
-                    token = parser.GetToken();
-                }
 
-                ushort parsedExpression = ParseExpression(expression, labelScan);
-
-                indexValue = parsedExpression;
-            }
-
-            byte operand = 128;
-            bool hasByteOperand = false;
-            bool hasWordOperand = false;
-            ushort wordOperand = 0;
-            byte byteOperand = 0;
-
-            if (indexValue == 0)
-            {
-                operand = 132;
-            }
-            else if (indexValue > 0 && indexValue <= 16)
-            {
-                operand = (byte)indexValue;
-                if (negate)
-                {
-                    //operand = (byte) (operand | 16);
-                    operand = ConvertToTwosCompliment(operand);
-                    operand = (byte)(operand & 0x1f);
-                }
-            }
-            else if (indexValue >= 17 && indexValue <= 128)
-            {
-                operand = (byte)(operand | 8);
-                byteOperand = (byte)(negate ? ConvertToTwosCompliment((byte)indexValue) : indexValue);
-                hasByteOperand = true;
-            }
-            else if (indexValue >= 129)
-            {
-                operand = (byte)(operand | 9);
-                wordOperand = negate ? ConvertToTwosCompliment(indexValue) : indexValue;
-                hasWordOperand = true;
+                indexValue = ParseExpression(parser, Assembly6809TokenParser.Tokens.Comma, labelScan);
             }
 
             SkipWhiteSpace(parser);
-            var registerToken = parser.GetToken();
-            if (registerToken.TokenName != Assembly6809TokenParser.Tokens.Register &&
-                registerToken.TokenValue.ToUpper() != "X" && registerToken.TokenValue.ToUpper() != "Y" &&
-                registerToken.TokenValue.ToUpper() != "U" && registerToken.TokenValue.ToUpper() != "S")
-            {
-                throw new Exceptions.InvalidRegisterNameException($"Register is invalid at line {_lineNumber}");
-            }
+            string register = ParseRegister(parser);
+            //if (parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Comma)
+            //{
+            //    parser.GetToken();
+            //}
+            //else
+            //{
+            //    string expression = "";
+            //    var token = parser.GetToken();
+            //    if (token.TokenName == Assembly6809TokenParser.Tokens.Decrement1)
+            //    {
+            //        negate = true;
+            //        token = parser.GetToken();
+            //    }
+            //    while (token != null && token.TokenName != Assembly6809TokenParser.Tokens.Comma)
+            //    {
+            //        expression += token.TokenValue;
+            //        token = parser.GetToken();
+            //    }
 
-            string register = registerToken.TokenValue.ToUpper();
+            //    ushort parsedExpression = ParseExpression(expression, labelScan);
 
-            switch (register)
-            {
-                case "X":
-                    operand = (byte)(operand & 0x9f);
-                    break;
-                case "Y":
-                    operand = (byte)(operand & 0xbf);
-                    break;
-                case "U":
-                    operand = (byte)(operand & 0xdf);
-                    break;
-                case "S":
-                    operand = (byte)(operand & 0xff);
-                    break;
-            }
+            //    indexValue = parsedExpression;
+            //}
 
-            SkipWhiteSpace(parser);
-            if (parser.Peek() != null && parser.Peek().TokenPeek != null &&
-                parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Increment1)
-            {
-                if (indexValue > 0)
-                {
-                    throw new Exceptions.InvalidOperandException($"Invalid Operand: Cannot increment with an offset at line {_lineNumber}");
-                }
+            //byte operand = 128;
+            //bool hasByteOperand = false;
+            //bool hasWordOperand = false;
+            //ushort wordOperand = 0;
+            //byte byteOperand = 0;
 
-                operand = (byte)(operand & 0xe0);
-                parser.GetToken();
-            }
-            if (parser.Peek() != null && parser.Peek().TokenPeek != null &&
-                parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Increment2)
+            //if (indexValue == 0)
+            //{
+            //    operand = 132;
+            //}
+            //else if (indexValue > 0 && indexValue <= 16)
+            //{
+            //    operand = (byte)indexValue;
+            //    if (negate)
+            //    {
+            //        //operand = (byte) (operand | 16);
+            //        operand = ConvertToTwosCompliment(operand);
+            //        operand = (byte)(operand & 0x1f);
+            //    }
+            //}
+            //else if (indexValue >= 17 && indexValue <= 128)
+            //{
+            //    operand = (byte)(operand | 8);
+            //    byteOperand = (byte)(negate ? ConvertToTwosCompliment((byte)indexValue) : indexValue);
+            //    hasByteOperand = true;
+            //}
+            //else if (indexValue >= 129)
+            //{
+            //    operand = (byte)(operand | 9);
+            //    wordOperand = negate ? ConvertToTwosCompliment(indexValue) : indexValue;
+            //    hasWordOperand = true;
+            //}
+
+            //SkipWhiteSpace(parser);
+            //var registerToken = parser.GetToken();
+            //if (registerToken.TokenName != Assembly6809TokenParser.Tokens.Register &&
+            //    registerToken.TokenValue.ToUpper() != "X" && registerToken.TokenValue.ToUpper() != "Y" &&
+            //    registerToken.TokenValue.ToUpper() != "U" && registerToken.TokenValue.ToUpper() != "S")
+            //{
+            //    throw new Exceptions.InvalidRegisterNameException($"Register is invalid at line {_lineNumber}");
+            //}
+
+            //string register = registerToken.TokenValue.ToUpper();
+
+            //switch (register)
+            //{
+            //    case "X":
+            //        operand = (byte)(operand & 0x9f);
+            //        break;
+            //    case "Y":
+            //        operand = (byte)(operand & 0xbf);
+            //        break;
+            //    case "U":
+            //        operand = (byte)(operand & 0xdf);
+            //        break;
+            //    case "S":
+            //        operand = (byte)(operand & 0xff);
+            //        break;
+            //}
+
+            //SkipWhiteSpace(parser);
+            //if (parser.Peek() != null && parser.Peek().TokenPeek != null &&
+            //    parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Increment1)
+            //{
+            //    if (indexValue > 0)
+            //    {
+            //        throw new Exceptions.InvalidOperandException($"Invalid Operand: Cannot increment with an offset at line {_lineNumber}");
+            //    }
+
+            //    operand = (byte)(operand & 0xe0);
+            //    parser.GetToken();
+            //}
+            //if (parser.Peek() != null && parser.Peek().TokenPeek != null &&
+            parser.Peek().TokenPeek.TokenName == Assembly6809TokenParser.Tokens.Increment2)
             {
                 if (indexValue > 0)
                 {
@@ -609,6 +649,7 @@ namespace Icembler
                 operand = (byte)(operand | 0x01);
                 parser.GetToken();
             }
+
             byteList.Add(0xA7);
             byteList.Add(operand);
 

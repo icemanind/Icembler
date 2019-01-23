@@ -72,6 +72,7 @@
     <Compile Include="Exceptions\LabelRequiredException.cs" />
     <Compile Include="Exceptions\OverflowException.cs" />
     <Compile Include="Exceptions\UndefinedLabelException.cs" />
+    <Compile Include="Exceptions\UnexpectedEndOfLineException.cs" />
     <Compile Include="Exceptions\VirtualDiskFullException.cs" />
     <Compile Include="ExpressionTokenParser.cs" />
     <Compile Include="FileModes.cs" />
