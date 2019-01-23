@@ -79,7 +79,7 @@ namespace Icembler
                 token = parser.GetToken();
             }
 
-            string zzz  = BitConverter.ToString(byteList.ToArray()).Replace("-", " ");
+            string zzz = BitConverter.ToString(byteList.ToArray()).Replace("-", " ");
             return byteList.ToArray();
         }
 
@@ -376,12 +376,12 @@ namespace Icembler
 
         private ushort ConvertToTwosCompliment(ushort val)
         {
-            return (ushort) ((ushort) ~val + 1);
+            return (ushort)((ushort)~val + 1);
         }
 
         private byte ConvertToTwosCompliment(byte val)
         {
-            return (byte) ((byte) ~val + 1);
+            return (byte)((byte)~val + 1);
         }
 
         #region Opcode Methods
@@ -420,6 +420,82 @@ namespace Icembler
             _numberOfBytes += 1;
         }
 
+        private byte[] CreateIndexedAddressingPostByte(OffsetTypes offsetType, char register, int incrementCount, bool negate, ushort offsetValue)
+        {
+            byte operand = 128;
+            bool hasByteOperand = false;
+            bool hasWordOperand = false;
+            ushort wordOperand = 0;
+            byte byteOperand = 0;
+            ushort indexValue = 0;
+
+            if (indexValue == 0)
+            {
+                operand = 132;
+            }
+            else if (indexValue > 0 && indexValue <= 16)
+            {
+                operand = (byte)indexValue;
+                if (negate)
+                {
+                    operand = ConvertToTwosCompliment(operand);
+                    operand = (byte)(operand & 0x1f);
+                }
+            }
+            else if (indexValue >= 17 && indexValue <= 128)
+            {
+                operand = (byte)(operand | 8);
+                byteOperand = (byte)(negate ? ConvertToTwosCompliment((byte)indexValue) : indexValue);
+                hasByteOperand = true;
+            }
+            else if (indexValue >= 129)
+            {
+                operand = (byte)(operand | 9);
+                wordOperand = negate ? ConvertToTwosCompliment(indexValue) : indexValue;
+                hasWordOperand = true;
+            }
+
+            switch (register)
+            {
+                case 'X':
+                    operand = (byte)(operand & 0x9f);
+                    break;
+                case 'Y':
+                    operand = (byte)(operand & 0xbf);
+                    break;
+                case 'U':
+                    operand = (byte)(operand & 0xdf);
+                    break;
+                case 'S':
+                    operand = (byte)(operand & 0xff);
+                    break;
+            }
+
+            if (incrementCount == 1)
+            {
+                operand = (byte)(operand & 0xe0);
+            }
+            else if (incrementCount == 2)
+            {
+                operand = (byte)(operand & 0xe0);
+                operand = (byte)(operand | 0x01);
+            }
+
+            var retval = new byte[hasByteOperand ? 2 : hasWordOperand ? 3 : 1];
+            retval[0] = operand;
+            if (hasByteOperand)
+            {
+                retval[1] = byteOperand;
+            }
+
+            if (hasWordOperand)
+            {
+                retval[1] = (byte)((wordOperand >> 8) & 0xFFu);
+                retval[2] = (byte)(wordOperand & 0xFFu);
+            }
+            return retval;
+        }
+
         private void StaIndexed(Assembly6809TokenParser parser, List<byte> byteList, bool labelScan)
         {
             ushort indexValue = 0;
@@ -445,7 +521,7 @@ namespace Icembler
                 }
 
                 ushort parsedExpression = ParseExpression(expression, labelScan);
-                
+
                 indexValue = parsedExpression;
             }
 
@@ -461,23 +537,23 @@ namespace Icembler
             }
             else if (indexValue > 0 && indexValue <= 16)
             {
-                operand = (byte) indexValue;
+                operand = (byte)indexValue;
                 if (negate)
                 {
                     //operand = (byte) (operand | 16);
                     operand = ConvertToTwosCompliment(operand);
-                    operand = (byte) (operand & 0x1f);
+                    operand = (byte)(operand & 0x1f);
                 }
             }
             else if (indexValue >= 17 && indexValue <= 128)
             {
-                operand = (byte) (operand | 8);
-                byteOperand = (byte) (negate ? ConvertToTwosCompliment((byte)indexValue) : indexValue);
+                operand = (byte)(operand | 8);
+                byteOperand = (byte)(negate ? ConvertToTwosCompliment((byte)indexValue) : indexValue);
                 hasByteOperand = true;
             }
             else if (indexValue >= 129)
             {
-                operand = (byte) (operand | 9);
+                operand = (byte)(operand | 9);
                 wordOperand = negate ? ConvertToTwosCompliment(indexValue) : indexValue;
                 hasWordOperand = true;
             }
@@ -541,7 +617,8 @@ namespace Icembler
             {
                 byteList.Add(byteOperand);
                 _numberOfBytes += 1;
-            } else if (hasWordOperand)
+            }
+            else if (hasWordOperand)
             {
                 byteList.Add((byte)((wordOperand >> 8) & 0xFFu));
                 byteList.Add((byte)(wordOperand & 0xFFu));
@@ -549,5 +626,11 @@ namespace Icembler
             }
         }
         #endregion
+
+        private enum OffsetTypes
+        {
+            ConstantOffset,
+            AccumulatorOffset
+        }
     }
 }
